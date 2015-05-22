@@ -223,11 +223,11 @@ s8 BNO055_I2C_bus_write(u8 dev_addr, u8 reg_addr, u8 *reg_data, u8 cnt);
 void BNO055_delay_msek(u32 msek);
 
 
-BNO055_RETURN_FUNCTION_TYPE bno055_set_power_mode(u8 v_power_mode_u8);
-BNO055_RETURN_FUNCTION_TYPE bno055_set_operation_mode(u8 v_operation_mode_u8);
-BNO055_RETURN_FUNCTION_TYPE bno055_get_operation_mode(u8 *v_operation_mode_u8);
-BNO055_RETURN_FUNCTION_TYPE bno055_write_page_id(u8 v_page_id_u8);
-BNO055_RETURN_FUNCTION_TYPE bno055_write_register(u8 v_addr_u8, u8 *p_data_u8, u8 v_len_u8);
+BNO055_RETURN_FUNCTION_TYPE bno055_set_power_mode(u8 v_power_mode_u8,struct bno055_t *bno055);
+BNO055_RETURN_FUNCTION_TYPE bno055_set_operation_mode(u8 v_operation_mode_u8,struct bno055_t *bno055);
+BNO055_RETURN_FUNCTION_TYPE bno055_get_operation_mode(u8 *v_operation_mode_u8,struct bno055_t *bno055);
+BNO055_RETURN_FUNCTION_TYPE bno055_write_page_id(u8 v_page_id_u8,struct bno055_t *bno055);
+BNO055_RETURN_FUNCTION_TYPE bno055_write_register(u8 v_addr_u8, u8 *p_data_u8, u8 v_len_u8,struct bno055_t *bno055);
 //End of functions
 
 void sig_handler(int signo);
@@ -249,77 +249,116 @@ struct bno055_t {
 
 //Globals
 //static struct bno055_t *bno055;
-bno055_t bno055;
+bno055_t sensor1, sensor2;
 int running = 0;
 uint8_t rx_tx_buf[ARRAY_SIZE_SIX];
 
 
 int main()
 {
-    s32 comres = ERROR;
+    s32 comres1 = ERROR;
+    s32 comres2 = ERROR;
     
     u8 power_mode = BNO055_ZERO_U8X;
     
     /*********read raw mag data***********/
-    /* variable used to read the mag x data */
-    s16 mag_datax  = BNO055_ZERO_U8X;
-    /* variable used to read the mag y data */
-    s16 mag_datay  = BNO055_ZERO_U8X;
-    /* variable used to read the mag z data */
-    s16 mag_dataz  = BNO055_ZERO_U8X;
+    /* variable used to read the mag x data from the first sensor*/
+    s16 mag_datax1  = BNO055_ZERO_U8X;
+    /* variable used to read the mag y data from the first sensor*/
+    s16 mag_datay1  = BNO055_ZERO_U8X;
+    /* variable used to read the mag z data from the first sensor*/
+    s16 mag_dataz1  = BNO055_ZERO_U8X;
+    /* variable used to read the mag x data from the second sensor*/
+    s16 mag_datax2  = BNO055_ZERO_U8X;
+    /* variable used to read the mag y data from the second sensor*/
+    s16 mag_datay2  = BNO055_ZERO_U8X;
+    /* variable used to read the mag z data from the second sensor*/
+    s16 mag_dataz2  = BNO055_ZERO_U8X;
+    
     
     signal(SIGINT, sig_handler);
     
 
-    //mraa::I2c* i2c;
+    mraa::I2c* i2c;
 
         /*-----------------------------------------------------------------------*
      ************************* START INITIALIZATION ***********************
      *-------------------------------------------------------------------------*/
     
 
-    //i2c = new mraa::I2c(0);
+    i2c = new mraa::I2c(0);
     
     //bno055.bus_write = BNO055_I2C_bus_write;
     //bno055.bus_read = BNO055_I2C_bus_read;
     //bno055.delay_msec = BNO055_delay_msek;
-    bno055.dev_addr = BNO055_I2C_ADDR1;
+    sensor1.dev_addr = BNO055_I2C_ADDR1;
+    sensor2.dev_addr = BNO055_I2C_ADDR2;
 
-    printf("%x\n\n",bno055.dev_addr);
+    printf("%x\n\n",sensor1.dev_addr);
+    printf("%x\n\n",sensor2.dev_addr);
     
-    comres = bno055_init(&bno055);
+    comres1 = bno055_init(&sensor1);
+    comres2 = bno055_init(&sensor2);
     
     power_mode = POWER_MODE_NORMAL; /* set the power mode as NORMAL*/
-    comres += bno055_set_power_mode(power_mode);
-    comres += bno055_set_operation_mode(OPERATION_MODE_MAGONLY);
+    comres1 += bno055_set_power_mode(power_mode,&sensor1);
+    comres1 += bno055_set_operation_mode(OPERATION_MODE_MAGONLY,&sensor1);
+    
+    comres2 += bno055_set_power_mode(power_mode,&sensor2);
+    comres2 += bno055_set_operation_mode(OPERATION_MODE_MAGONLY,&sensor2);
     
     /*---------------------------------------------------------------------*
      ************************* END INITIALIZATION **********************
      *---------------------------------------------------------------------*/
     
-    double x,y,z;
+    double x1,y1,z1,x2,y2,z2;
     
     for (int i = 0; i < 10; i++)
     {
-        /*Read the six byte value of mag xyz*/
-        BNO055_I2C_bus_read(bno055.dev_addr,BNO055_MAG_DATA_X_LSB_VALUEX__REG,rx_tx_buf, BNO055_SIX_U8X);
+        if(running == -1)
+        {
+            printf("Something went on the board wrong\n");
+            break;
+        }
+        /*Read the six byte value of mag xyz from first sensor*/
+        BNO055_I2C_bus_read(sensor1.dev_addr,BNO055_MAG_DATA_X_LSB_VALUEX__REG,rx_tx_buf, BNO055_SIX_U8X);
         /* Data X*/
         rx_tx_buf[INDEX_ZERO] = BNO055_GET_BITSLICE(rx_tx_buf[INDEX_ZERO],BNO055_MAG_DATA_X_LSB_VALUEX);
         rx_tx_buf[INDEX_ONE] = BNO055_GET_BITSLICE(rx_tx_buf[INDEX_ONE], BNO055_MAG_DATA_X_MSB_VALUEX);
-        mag_datax = ((((s32)((s8)rx_tx_buf[INDEX_ONE])) << BNO055_SHIFT_8_POSITION) |(rx_tx_buf[INDEX_ZERO]));
-        x = (double)(mag_datax/MAG_DIV_UT);
+        mag_datax1 = ((((s32)((s8)rx_tx_buf[INDEX_ONE])) << BNO055_SHIFT_8_POSITION) |(rx_tx_buf[INDEX_ZERO]));
+        x1 = (double)(mag_datax1/MAG_DIV_UT);
         /* Data Y*/
         rx_tx_buf[INDEX_TWO] = BNO055_GET_BITSLICE(rx_tx_buf[INDEX_TWO],BNO055_MAG_DATA_Y_LSB_VALUEY);
         rx_tx_buf[INDEX_THREE] = BNO055_GET_BITSLICE(rx_tx_buf[INDEX_THREE], BNO055_MAG_DATA_Y_MSB_VALUEY);
-        mag_datay = ((((s32)((s8)rx_tx_buf[INDEX_THREE])) <<BNO055_SHIFT_8_POSITION) |(rx_tx_buf[INDEX_TWO]));
-        y = (double)(mag_datay/MAG_DIV_UT);
+        mag_datay1 = ((((s32)((s8)rx_tx_buf[INDEX_THREE])) <<BNO055_SHIFT_8_POSITION) |(rx_tx_buf[INDEX_TWO]));
+        y1 = (double)(mag_datay1/MAG_DIV_UT);
         /* Data Z*/
         rx_tx_buf[INDEX_FOUR] = BNO055_GET_BITSLICE(rx_tx_buf[INDEX_FOUR],BNO055_MAG_DATA_Z_LSB_VALUEZ);
         rx_tx_buf[INDEX_FIVE] = BNO055_GET_BITSLICE(rx_tx_buf[INDEX_FIVE],BNO055_MAG_DATA_Z_MSB_VALUEZ);
-        mag_dataz = ((((s32)((s8)rx_tx_buf[INDEX_FIVE])) << BNO055_SHIFT_8_POSITION)| (rx_tx_buf[INDEX_FOUR]));
-        z = (double)(mag_dataz/MAG_DIV_UT);
+        mag_dataz1 = ((((s32)((s8)rx_tx_buf[INDEX_FIVE])) << BNO055_SHIFT_8_POSITION)| (rx_tx_buf[INDEX_FOUR]));
+        z1 = (double)(mag_dataz1/MAG_DIV_UT);
         
-        printf("x: %f, y: %f, z: %f\n",x,y,z);
+        /*Read the six byte value of mag xyz from second sesnor*/
+        BNO055_I2C_bus_read(sensor2.dev_addr,BNO055_MAG_DATA_X_LSB_VALUEX__REG,rx_tx_buf, BNO055_SIX_U8X);
+        /* Data X*/
+        rx_tx_buf[INDEX_ZERO] = BNO055_GET_BITSLICE(rx_tx_buf[INDEX_ZERO],BNO055_MAG_DATA_X_LSB_VALUEX);
+        rx_tx_buf[INDEX_ONE] = BNO055_GET_BITSLICE(rx_tx_buf[INDEX_ONE], BNO055_MAG_DATA_X_MSB_VALUEX);
+        mag_datax2 = ((((s32)((s8)rx_tx_buf[INDEX_ONE])) << BNO055_SHIFT_8_POSITION) |(rx_tx_buf[INDEX_ZERO]));
+        x2 = (double)(mag_datax2/MAG_DIV_UT);
+        /* Data Y*/
+        rx_tx_buf[INDEX_TWO] = BNO055_GET_BITSLICE(rx_tx_buf[INDEX_TWO],BNO055_MAG_DATA_Y_LSB_VALUEY);
+        rx_tx_buf[INDEX_THREE] = BNO055_GET_BITSLICE(rx_tx_buf[INDEX_THREE], BNO055_MAG_DATA_Y_MSB_VALUEY);
+        mag_datay2 = ((((s32)((s8)rx_tx_buf[INDEX_THREE])) <<BNO055_SHIFT_8_POSITION) |(rx_tx_buf[INDEX_TWO]));
+        y2 = (double)(mag_datay2/MAG_DIV_UT);
+        /* Data Z*/
+        rx_tx_buf[INDEX_FOUR] = BNO055_GET_BITSLICE(rx_tx_buf[INDEX_FOUR],BNO055_MAG_DATA_Z_LSB_VALUEZ);
+        rx_tx_buf[INDEX_FIVE] = BNO055_GET_BITSLICE(rx_tx_buf[INDEX_FIVE],BNO055_MAG_DATA_Z_MSB_VALUEZ);
+        mag_dataz2 = ((((s32)((s8)rx_tx_buf[INDEX_FIVE])) << BNO055_SHIFT_8_POSITION)| (rx_tx_buf[INDEX_FOUR]));
+        z2 = (double)(mag_dataz2/MAG_DIV_UT);
+        
+        
+        printf("x1: %f, y1: %f, z1: %f\n",x1,y1,z1);
+        printf("x2: %f, y2: %f, z2: %f\n",x2,y2,z2);
     }
     
     //read some values here
@@ -334,7 +373,8 @@ int main()
      register - 0x3E
      bit positions - 0 and 1*/
     power_mode = POWER_MODE_SUSPEND; /* set the power mode as SUSPEND*/
-    comres += bno055_set_power_mode(power_mode);
+    comres1 += bno055_set_power_mode(power_mode,&sensor1);
+    comres2 += bno055_set_power_mode(power_mode,&sensor2);
     
     //delete i2c;
     
@@ -405,7 +445,7 @@ BNO055_RETURN_FUNCTION_TYPE bno055_init(struct bno055_t *bno055)
 }
 
 
-BNO055_RETURN_FUNCTION_TYPE bno055_set_power_mode(u8 v_power_mode_u8)
+BNO055_RETURN_FUNCTION_TYPE bno055_set_power_mode(u8 v_power_mode_u8, struct bno055_t *bno055)
 {
     BNO055_RETURN_FUNCTION_TYPE com_rslt = ERROR;
     u8 v_data_u8r = BNO055_ZERO_U8X;
@@ -416,19 +456,18 @@ BNO055_RETURN_FUNCTION_TYPE bno055_set_power_mode(u8 v_power_mode_u8)
     /* The write operation effective only if the operation
      mode is in config mode, this part of code is checking the
      current operation mode and set the config mode */
-    v_stat_s8 = bno055_get_operation_mode(&v_prev_opmode_u8);
+    v_stat_s8 = bno055_get_operation_mode(&v_prev_opmode_u8, bno055);
     if (v_stat_s8 == SUCCESS)
     {
         if (v_prev_opmode_u8 != OPERATION_MODE_CONFIG)
-            v_stat_s8 += bno055_set_operation_mode
-            (OPERATION_MODE_CONFIG);
+            v_stat_s8 += bno055_set_operation_mode(OPERATION_MODE_CONFIG, bno055);
         if (v_stat_s8 == SUCCESS)
         {
             /* Write the value of power mode */
-            com_rslt = BNO055_I2C_bus_read(bno055.dev_addr,BNO055_POWER_MODE__REG, &v_data_u8r, BNO055_ONE_U8X);
+            com_rslt = BNO055_I2C_bus_read(bno055->dev_addr,BNO055_POWER_MODE__REG, &v_data_u8r, BNO055_ONE_U8X);
             if (com_rslt == SUCCESS) {
                 v_data_u8r = BNO055_SET_BITSLICE(v_data_u8r,BNO055_POWER_MODE, v_power_mode_u8);
-                com_rslt += BNO055_I2C_bus_write(bno055.dev_addr,BNO055_POWER_MODE__REG,&v_data_u8r, BNO055_ONE_U8X);
+                com_rslt += BNO055_I2C_bus_write(bno055->dev_addr,BNO055_POWER_MODE__REG,&v_data_u8r, BNO055_ONE_U8X);
             }
         }
         else
@@ -443,12 +482,12 @@ BNO055_RETURN_FUNCTION_TYPE bno055_set_power_mode(u8 v_power_mode_u8)
     if (v_prev_opmode_u8 != OPERATION_MODE_CONFIG)
     /* set the operation mode
      of previous operation mode*/
-    com_rslt += bno055_set_operation_mode(v_prev_opmode_u8);
+    com_rslt += bno055_set_operation_mode(v_prev_opmode_u8, bno055);
     return com_rslt;
 }
 
 
-BNO055_RETURN_FUNCTION_TYPE bno055_set_operation_mode(u8 v_operation_mode_u8)
+BNO055_RETURN_FUNCTION_TYPE bno055_set_operation_mode(u8 v_operation_mode_u8, struct bno055_t *bno055)
 {
     BNO055_RETURN_FUNCTION_TYPE com_rslt = ERROR;
     u8 v_data_u8r = BNO055_ZERO_U8X;
@@ -459,19 +498,19 @@ BNO055_RETURN_FUNCTION_TYPE bno055_set_operation_mode(u8 v_operation_mode_u8)
     /* The write operation effective only if the operation
      mode is in config mode, this part of code is checking the
      current operation mode and set the config mode */
-    v_stat_s8 = bno055_get_operation_mode(&v_prev_opmode_u8);
+    v_stat_s8 = bno055_get_operation_mode(&v_prev_opmode_u8,bno055);
     if (v_stat_s8 == SUCCESS)
     {
         /* If the previous operation mode is config it is
          directly write the operation mode */
         if (v_prev_opmode_u8 == OPERATION_MODE_CONFIG)
         {
-            com_rslt = BNO055_I2C_bus_read(bno055.dev_addr, BNO055_OPERATION_MODE__REG,&v_data_u8r,BNO055_ONE_U8X);
+            com_rslt = BNO055_I2C_bus_read(bno055->dev_addr, BNO055_OPERATION_MODE__REG,&v_data_u8r,BNO055_ONE_U8X);
             if (com_rslt == SUCCESS)
             {
                 v_data_u8r =
                 BNO055_SET_BITSLICE(v_data_u8r, BNO055_OPERATION_MODE,v_operation_mode_u8);
-                com_rslt += BNO055_I2C_bus_write(bno055.dev_addr,BNO055_OPERATION_MODE__REG,&v_data_u8r, BNO055_ONE_U8X);
+                com_rslt += BNO055_I2C_bus_write(bno055->dev_addr,BNO055_OPERATION_MODE__REG,&v_data_u8r, BNO055_ONE_U8X);
                 /* Config mode to other
                  operation mode switching
                  required delay of 600ms*/
@@ -483,12 +522,12 @@ BNO055_RETURN_FUNCTION_TYPE bno055_set_operation_mode(u8 v_operation_mode_u8)
             /* If the previous operation
              mode is not config it is
              write the config mode */
-            com_rslt = BNO055_I2C_bus_read(bno055.dev_addr, BNO055_OPERATION_MODE__REG, &v_data_u8r,BNO055_ONE_U8X);
+            com_rslt = BNO055_I2C_bus_read(bno055->dev_addr, BNO055_OPERATION_MODE__REG, &v_data_u8r,BNO055_ONE_U8X);
             if (com_rslt == SUCCESS)
             {
                 v_data_u8r =
                 BNO055_SET_BITSLICE(v_data_u8r, BNO055_OPERATION_MODE, OPERATION_MODE_CONFIG);
-                com_rslt += bno055_write_register(BNO055_OPERATION_MODE__REG,&v_data_u8r, BNO055_ONE_U8X);
+                com_rslt += bno055_write_register(BNO055_OPERATION_MODE__REG,&v_data_u8r, BNO055_ONE_U8X, bno055);
                 /* other mode to config mode switching
                  required delay of 20ms*/
                 BNO055_delay_msek(BNO055_TWENTY_U8X);
@@ -496,11 +535,11 @@ BNO055_RETURN_FUNCTION_TYPE bno055_set_operation_mode(u8 v_operation_mode_u8)
             /* Write the operation mode */
             if (v_operation_mode_u8 != OPERATION_MODE_CONFIG)
             {
-                com_rslt = BNO055_I2C_bus_read(bno055.dev_addr,BNO055_OPERATION_MODE__REG,&v_data_u8r, BNO055_ONE_U8X);
+                com_rslt = BNO055_I2C_bus_read(bno055->dev_addr,BNO055_OPERATION_MODE__REG,&v_data_u8r, BNO055_ONE_U8X);
                 if (com_rslt == SUCCESS)
                 {
                     v_data_u8r = BNO055_SET_BITSLICE(v_data_u8r,BNO055_OPERATION_MODE,v_operation_mode_u8);
-                    com_rslt +=BNO055_I2C_bus_write(bno055.dev_addr, BNO055_OPERATION_MODE__REG, &v_data_u8r,BNO055_ONE_U8X);
+                    com_rslt +=BNO055_I2C_bus_write(bno055->dev_addr, BNO055_OPERATION_MODE__REG, &v_data_u8r,BNO055_ONE_U8X);
                     /* Config mode to other
                      operation mode switching
                      required delay of 600ms*/
@@ -518,7 +557,7 @@ BNO055_RETURN_FUNCTION_TYPE bno055_set_operation_mode(u8 v_operation_mode_u8)
 }
 
 
-BNO055_RETURN_FUNCTION_TYPE bno055_get_operation_mode(u8 *v_operation_mode_u8)
+BNO055_RETURN_FUNCTION_TYPE bno055_get_operation_mode(u8 *v_operation_mode_u8, struct bno055_t *bno055)
 {
     /* Variable used to return value of
      communication routine*/
@@ -527,13 +566,13 @@ BNO055_RETURN_FUNCTION_TYPE bno055_get_operation_mode(u8 *v_operation_mode_u8)
     s8 v_stat_s8 = ERROR;
     /*condition check for page, operation mode is
      available in the page zero*/
-    if (bno055.page_id != PAGE_ZERO)
+    if (bno055->page_id != PAGE_ZERO)
     /* Write the page zero*/
-        v_stat_s8 = bno055_write_page_id(PAGE_ZERO);
-    if ((v_stat_s8 == SUCCESS) || (bno055.page_id == PAGE_ZERO))
+        v_stat_s8 = bno055_write_page_id(PAGE_ZERO, bno055);
+    if ((v_stat_s8 == SUCCESS) || (bno055->page_id == PAGE_ZERO))
     {
         /* Read the value of operation mode*/
-        com_rslt = BNO055_I2C_bus_read(bno055.dev_addr,BNO055_OPERATION_MODE__REG, &v_data_u8r, BNO055_ONE_U8X);
+        com_rslt = BNO055_I2C_bus_read(bno055->dev_addr,BNO055_OPERATION_MODE__REG, &v_data_u8r, BNO055_ONE_U8X);
         *v_operation_mode_u8 = BNO055_GET_BITSLICE(v_data_u8r,BNO055_OPERATION_MODE);
     }
     else
@@ -543,7 +582,7 @@ BNO055_RETURN_FUNCTION_TYPE bno055_get_operation_mode(u8 *v_operation_mode_u8)
     return com_rslt;
 }
 
-BNO055_RETURN_FUNCTION_TYPE bno055_write_page_id(u8 v_page_id_u8)
+BNO055_RETURN_FUNCTION_TYPE bno055_write_page_id(u8 v_page_id_u8,struct bno055_t *bno055)
 {
     /* Variable used to return value of
      communication routine*/
@@ -551,15 +590,15 @@ BNO055_RETURN_FUNCTION_TYPE bno055_write_page_id(u8 v_page_id_u8)
     u8 v_data_u8r = BNO055_ZERO_U8X;
 
     /* Read the current page*/
-    com_rslt = BNO055_I2C_bus_read(bno055.dev_addr,BNO055_PAGE_ID__REG, &v_data_u8r, BNO055_ONE_U8X);
+    com_rslt = BNO055_I2C_bus_read(bno055->dev_addr,BNO055_PAGE_ID__REG, &v_data_u8r, BNO055_ONE_U8X);
     /* Check condition for communication success*/
     if (com_rslt == SUCCESS) {
         v_data_u8r = BNO055_SET_BITSLICE(v_data_u8r,
                                              BNO055_PAGE_ID, v_page_id_u8);
         /* Write the page id*/
-        com_rslt += BNO055_I2C_bus_write(bno055.dev_addr,BNO055_PAGE_ID__REG,&v_data_u8r, BNO055_ONE_U8X);
+        com_rslt += BNO055_I2C_bus_write(bno055->dev_addr,BNO055_PAGE_ID__REG,&v_data_u8r, BNO055_ONE_U8X);
             if (com_rslt == SUCCESS)
-                bno055.page_id = v_page_id_u8;
+                bno055->page_id = v_page_id_u8;
     }
     else
     {
@@ -569,14 +608,14 @@ BNO055_RETURN_FUNCTION_TYPE bno055_write_page_id(u8 v_page_id_u8)
     return com_rslt;
 }
 
-BNO055_RETURN_FUNCTION_TYPE bno055_write_register(u8 v_addr_u8, u8 *p_data_u8, u8 v_len_u8)
+BNO055_RETURN_FUNCTION_TYPE bno055_write_register(u8 v_addr_u8, u8 *p_data_u8, u8 v_len_u8,struct bno055_t *bno055)
 {
     /* Variable used to return value of
      communication routine*/
     BNO055_RETURN_FUNCTION_TYPE com_rslt = ERROR;
     /* Check the struct p_bno055 is empty */
     /* Write the values of respective given register */
-    com_rslt = BNO055_I2C_bus_write(bno055.dev_addr, v_addr_u8, p_data_u8, v_len_u8);
+    com_rslt = BNO055_I2C_bus_write(bno055->dev_addr, v_addr_u8, p_data_u8, v_len_u8);
 
     return com_rslt;
 }
@@ -585,10 +624,10 @@ s8 BNO055_I2C_bus_write(u8 dev_addr, u8 reg_addr, u8 *reg_data, u8 cnt)
 {
 
     uint8_t rx_tx_buf[ARRAY_SIZE_SIX];
-    //i2c->address(dev_addr);
+    i2c->address(dev_addr);
     rx_tx_buf[0] = reg_addr;
     rx_tx_buf[1] = *reg_data;
-    //mraa_result_t status = i2c->write(rx_tx_buf, 2);
+    mraa_result_t status = i2c->write(rx_tx_buf, 2);
     
     //if (status == MRAA_SUCCESS)
         return SUCCESS;
@@ -600,11 +639,11 @@ s8 BNO055_I2C_bus_read(u8 dev_addr, u8 reg_addr, u8 *reg_data, u8 cnt)
 {
     uint8_t reg = reg_addr;
     int size = cnt;
-    //i2c->address(dev_addr);
-    //i2c->writeByte(reg);
+    i2c->address(dev_addr);
+    i2c->writeByte(reg);
     
-    //i2c->address(dev_addr);
-    //i2c->read(rx_tx_buf, size);
+    i2c->address(dev_addr);
+    i2c->read(rx_tx_buf, size);
     
     //if (status == MRAA_SUCCESS)
     return SUCCESS;
