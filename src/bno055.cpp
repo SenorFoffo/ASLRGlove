@@ -135,6 +135,7 @@ typedef	unsigned long long int u64;/**< used for unsigned 64bit */
 #define BNO055_BL_REV_ID__LEN             8
 #define BNO055_BL_REV_ID__REG             BNO055_BL_REV_ID_ADDR
 
+
 #define INDEX_ZERO		0
 #define INDEX_ONE		1
 #define INDEX_TWO		2
@@ -177,6 +178,9 @@ typedef	unsigned long long int u64;/**< used for unsigned 64bit */
 #define BNO055_MAG_DATA_Z_LSB_ADDR			0X12
 #define BNO055_MAG_DATA_Z_MSB_ADDR			0X13
 
+/*Mag status register*/
+#define BNO055_CALIB_STAT_ADDR				0X35
+
 /* Mag data X-LSB register*/
 #define BNO055_MAG_DATA_X_LSB_VALUEX__POS             0
 #define BNO055_MAG_DATA_X_LSB_VALUEX__MSK             0xFF
@@ -214,6 +218,12 @@ BNO055_MAG_DATA_X_LSB_ADDR
 #define BNO055_MAG_DATA_Z_MSB_VALUEZ__LEN             8
 #define BNO055_MAG_DATA_Z_MSB_VALUEZ__REG             BNO055_MAG_DATA_Z_MSB_ADDR
 
+/*Mag_Calib status register*/
+#define BNO055_MAG_CALIB_STAT__POS             0
+#define BNO055_MAG_CALIB_STAT__MSK             0X03
+#define BNO055_MAG_CALIB_STAT__LEN             2
+#define BNO055_MAG_CALIB_STAT__REG             BNO055_CALIB_STAT_ADDR
+
 //end of Definitions
 
 //Funcions
@@ -228,6 +238,7 @@ BNO055_RETURN_FUNCTION_TYPE bno055_set_operation_mode(u8 v_operation_mode_u8,str
 BNO055_RETURN_FUNCTION_TYPE bno055_get_operation_mode(u8 *v_operation_mode_u8,struct bno055_t *bno055);
 BNO055_RETURN_FUNCTION_TYPE bno055_write_page_id(u8 v_page_id_u8,struct bno055_t *bno055);
 BNO055_RETURN_FUNCTION_TYPE bno055_write_register(u8 v_addr_u8, u8 *p_data_u8, u8 v_len_u8,struct bno055_t *bno055);
+BNO055_RETURN_FUNCTION_TYPE bno055_get_mag_calib_stat(u8 *v_mag_calib_u8, struct bno055_t *bno055);
 //End of functions
 
 void sig_handler(int signo);
@@ -277,8 +288,9 @@ int main()
     
     
     signal(SIGINT, sig_handler);
-    
 
+    unsigned char mag_calib_status1 = 0;
+    unsigned char mag_calib_status2 = 0;
     mraa::I2c* i2c;
 
         /*-----------------------------------------------------------------------*
@@ -293,6 +305,7 @@ int main()
     //bno055.delay_msec = BNO055_delay_msek;
     sensor1.dev_addr = BNO055_I2C_ADDR1;
     sensor2.dev_addr = BNO055_I2C_ADDR2;
+
 
     printf("%x\n\n",sensor1.dev_addr);
     printf("%x\n\n",sensor2.dev_addr);
@@ -320,6 +333,13 @@ int main()
             printf("Something went on the board wrong\n");
             break;
         }
+        
+        bno055_get_mag_calib_stat(&mag_calib_status1, &sensor1);
+        
+        bno055_get_mag_calib_stat(&mag_calib_status2, &sensor2);
+        
+        printf("%x\t%x\n", mag_calib_status1, mag_calib_status2);
+        
         /*Read the six byte value of mag xyz from first sensor*/
         BNO055_I2C_bus_read(sensor1.dev_addr,BNO055_MAG_DATA_X_LSB_VALUEX__REG,rx_tx_buf, BNO055_SIX_U8X);
         /* Data X*/
@@ -358,7 +378,7 @@ int main()
         
         
         printf("x1: %f, y1: %f, z1: %f\n",x1,y1,z1);
-        printf("x2: %f, y2: %f, z2: %f\n",x2,y2,z2);
+        printf("x2: %f, y2: %f, z2: %f\n\n",x2,y2,z2);
     }
     
     //read some values here
@@ -376,14 +396,14 @@ int main()
     comres1 += bno055_set_power_mode(power_mode,&sensor1);
     comres2 += bno055_set_power_mode(power_mode,&sensor2);
     
-    //delete i2c;
+    delete i2c;
     
     /*---------------------------------------------------------------------*
      ************************* END DE-INITIALIZATION **********************
      *---------------------------------------------------------------------*/
     
-    //return MRAA_SUCCESS;
-    return 0;
+    return MRAA_SUCCESS;
+    //return 0;
 }
 
 
@@ -593,8 +613,7 @@ BNO055_RETURN_FUNCTION_TYPE bno055_write_page_id(u8 v_page_id_u8,struct bno055_t
     com_rslt = BNO055_I2C_bus_read(bno055->dev_addr,BNO055_PAGE_ID__REG, &v_data_u8r, BNO055_ONE_U8X);
     /* Check condition for communication success*/
     if (com_rslt == SUCCESS) {
-        v_data_u8r = BNO055_SET_BITSLICE(v_data_u8r,
-                                             BNO055_PAGE_ID, v_page_id_u8);
+        v_data_u8r = BNO055_SET_BITSLICE(v_data_u8r, BNO055_PAGE_ID, v_page_id_u8);
         /* Write the page id*/
         com_rslt += BNO055_I2C_bus_write(bno055->dev_addr,BNO055_PAGE_ID__REG,&v_data_u8r, BNO055_ONE_U8X);
             if (com_rslt == SUCCESS)
@@ -617,6 +636,45 @@ BNO055_RETURN_FUNCTION_TYPE bno055_write_register(u8 v_addr_u8, u8 *p_data_u8, u
     /* Write the values of respective given register */
     com_rslt = BNO055_I2C_bus_write(bno055->dev_addr, v_addr_u8, p_data_u8, v_len_u8);
 
+    return com_rslt;
+}
+
+/*!
+ *	@brief This API used to read
+ *	mag calibration status from register from 0x35 bit 0 and 1
+ *
+ *	@param v_mag_calib_u8 : The value of mag calib status
+ *
+ *
+ *	@return results of bus communication function
+ *	@retval 0 -> Success
+ *	@retval 1 -> Error
+ *
+ */
+BNO055_RETURN_FUNCTION_TYPE bno055_get_mag_calib_stat(u8 *v_mag_calib_u8, struct bno055_t *bno055)
+{
+    /* Variable used to return value of
+     communication routine*/
+    BNO055_RETURN_FUNCTION_TYPE com_rslt = ERROR;
+    u8 v_data_u8r = BNO055_ZERO_U8X;
+    s8 v_stat_s8 = ERROR;
+    /* Check the struct p_bno055 is empty */
+    /*condition check for page, mag calib
+         available in the page zero*/
+    if (bno055->page_id != PAGE_ZERO)
+    /* Write the page zero*/
+    v_stat_s8 = bno055_write_page_id(PAGE_ZERO, bno055);
+    if ((v_stat_s8 == SUCCESS) ||(bno055->page_id == PAGE_ZERO))
+    {
+        /* Read the mag calib v_stat_s8 */
+        com_rslt = BNO055_I2C_bus_read(bno055->dev_addr,BNO055_MAG_CALIB_STAT__REG,&v_data_u8r, BNO055_ONE_U8X);
+        *v_mag_calib_u8 =BNO055_GET_BITSLICE(v_data_u8r,BNO055_MAG_CALIB_STAT);
+    }
+    else
+    {
+        com_rslt = ERROR;
+    }
+    
     return com_rslt;
 }
 
