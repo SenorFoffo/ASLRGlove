@@ -263,7 +263,7 @@ struct bno055_t {
 bno055_t sensor1, sensor2;
 int running = 0;
 uint8_t rx_tx_buf[ARRAY_SIZE_SIX];
-
+mraa::I2c* i2c;
 
 int main()
 {
@@ -291,7 +291,7 @@ int main()
 
     unsigned char mag_calib_status1 = 0;
     unsigned char mag_calib_status2 = 0;
-    mraa::I2c* i2c;
+    
 
         /*-----------------------------------------------------------------------*
      ************************* START INITIALIZATION ***********************
