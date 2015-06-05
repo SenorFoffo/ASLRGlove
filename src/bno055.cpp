@@ -181,6 +181,14 @@ typedef	unsigned long long int u64;/**< used for unsigned 64bit */
 /*Mag status register*/
 #define BNO055_CALIB_STAT_ADDR				0X35
 
+/* Magnetometer Offset registers*/
+#define MAG_OFFSET_X_LSB_ADDR				0X5B
+#define MAG_OFFSET_X_MSB_ADDR				0X5C
+#define MAG_OFFSET_Y_LSB_ADDR				0X5D
+#define MAG_OFFSET_Y_MSB_ADDR				0X5E
+#define MAG_OFFSET_Z_LSB_ADDR				0X5F
+#define MAG_OFFSET_Z_MSB_ADDR				0X60
+
 /* Mag data X-LSB register*/
 #define BNO055_MAG_DATA_X_LSB_VALUEX__POS             0
 #define BNO055_MAG_DATA_X_LSB_VALUEX__MSK             0xFF
@@ -224,6 +232,52 @@ BNO055_MAG_DATA_X_LSB_ADDR
 #define BNO055_MAG_CALIB_STAT__LEN             2
 #define BNO055_MAG_CALIB_STAT__REG             BNO055_CALIB_STAT_ADDR
 
+//*Mag Offset registers*/
+#define BNO055_MAG_OFFSET_X_LSB__POS		0
+#define BNO055_MAG_OFFSET_X_LSB__MSK		0XFF
+#define BNO055_MAG_OFFSET_X_LSB__LEN		8
+#define BNO055_MAG_OFFSET_X_LSB__REG		MAG_OFFSET_X_LSB_ADDR
+
+#define BNO055_MAG_OFFSET_X_MSB__POS		0
+#define BNO055_MAG_OFFSET_X_MSB__MSK		0XFF
+#define BNO055_MAG_OFFSET_X_MSB__LEN		8
+#define BNO055_MAG_OFFSET_X_MSB__REG		MAG_OFFSET_X_MSB_ADDR
+
+#define BNO055_MAG_OFFSET_Y_LSB__POS		0
+#define BNO055_MAG_OFFSET_Y_LSB__MSK		0XFF
+#define BNO055_MAG_OFFSET_Y_LSB__LEN		8
+#define BNO055_MAG_OFFSET_Y_LSB__REG		MAG_OFFSET_Y_LSB_ADDR
+
+#define BNO055_MAG_OFFSET_Y_MSB__POS		0
+#define BNO055_MAG_OFFSET_Y_MSB__MSK		0XFF
+#define BNO055_MAG_OFFSET_Y_MSB__LEN		8
+#define BNO055_MAG_OFFSET_Y_MSB__REG		MAG_OFFSET_Y_MSB_ADDR
+
+#define BNO055_MAG_OFFSET_Z_LSB__POS		0
+#define BNO055_MAG_OFFSET_Z_LSB__MSK		0XFF
+#define BNO055_MAG_OFFSET_Z_LSB__LEN		8
+#define BNO055_MAG_OFFSET_Z_LSB__REG		MAG_OFFSET_Z_LSB_ADDR
+
+#define BNO055_MAG_OFFSET_Z_MSB__POS		0
+#define BNO055_MAG_OFFSET_Z_MSB__MSK		0XFF
+#define BNO055_MAG_OFFSET_Z_MSB__LEN		8
+#define BNO055_MAG_OFFSET_Z_MSB__REG		MAG_OFFSET_Z_MSB_ADDR
+
+/* Radius registers*/
+#define	MAG_RADIUS_LSB_ADDR					0X69
+#define	MAG_RADIUS_MSB_ADDR					0X6A
+
+/* Radius register definition*/
+#define BNO055_MAG_RADIUS_LSB__POS		0
+#define BNO055_MAG_RADIUS_LSB__MSK		0XFF
+#define BNO055_MAG_RADIUS_LSB__LEN		8
+#define BNO055_MAG_RADIUS_LSB__REG		MAG_RADIUS_LSB_ADDR
+
+#define BNO055_MAG_RADIUS_MSB__POS		0
+#define BNO055_MAG_RADIUS_MSB__MSK		0XFF
+#define BNO055_MAG_RADIUS_MSB__LEN		8
+#define BNO055_MAG_RADIUS_MSB__REG		MAG_RADIUS_MSB_ADDR
+
 //end of Definitions
 
 //Funcions
@@ -239,6 +293,7 @@ BNO055_RETURN_FUNCTION_TYPE bno055_get_operation_mode(u8 *v_operation_mode_u8,st
 BNO055_RETURN_FUNCTION_TYPE bno055_write_page_id(u8 v_page_id_u8,struct bno055_t *bno055);
 BNO055_RETURN_FUNCTION_TYPE bno055_write_register(u8 v_addr_u8, u8 *p_data_u8, u8 v_len_u8,struct bno055_t *bno055);
 BNO055_RETURN_FUNCTION_TYPE bno055_get_mag_calib_stat(u8 *v_mag_calib_u8, struct bno055_t *bno055);
+BNO055_RETURN_FUNCTION_TYPE bno055_read_mag_offset(struct bno055_mag_offset_t  *mag_offset, struct bno055_t *bno055);
 //End of functions
 
 void sig_handler(int signo);
@@ -257,6 +312,12 @@ struct bno055_t {
     //void (*delay_msec)(BNO055_MDELAY_DATA_TYPE);/**< delay function pointer */
 };
 
+struct bno055_mag_offset_t {
+    s16 x;/**< Mag offset x data */
+    s16 y;/**< Mag offset y data */
+    s16 z;/**< Mag offset z data */
+    s16 r;/**< Mag radius x data */
+};
 
 //Globals
 //static struct bno055_t *bno055;
@@ -265,12 +326,16 @@ int running = 0;
 uint8_t rx_tx_buf[ARRAY_SIZE_SIX];
 mraa::I2c* i2c;
 
+
 int main()
 {
     s32 comres1 = ERROR;
     s32 comres2 = ERROR;
     
     u8 power_mode = BNO055_ZERO_U8X;
+    
+    bno055_mag_offset_t offsetData1;
+    bno055_mag_offset_t offsetData2;
     
     /*********read raw mag data***********/
     /* variable used to read the mag x data from the first sensor*/
@@ -286,12 +351,13 @@ int main()
     /* variable used to read the mag z data from the second sensor*/
     s16 mag_dataz2  = BNO055_ZERO_U8X;
     
+
     
     signal(SIGINT, sig_handler);
 
     unsigned char mag_calib_status1 = 0;
     unsigned char mag_calib_status2 = 0;
-    
+
 
         /*-----------------------------------------------------------------------*
      ************************* START INITIALIZATION ***********************
@@ -323,6 +389,13 @@ int main()
     /*---------------------------------------------------------------------*
      ************************* END INITIALIZATION **********************
      *---------------------------------------------------------------------*/
+    
+    
+    bno055_read_mag_offset(&offsetData1, &sensor1);
+    bno055_read_mag_offset(&offsetData1, &sensor2);
+    
+    printf("xOffset1: %x, yOffset1: %x, zOffset1: %x\n",offsetData1.x,offsetData1.y,offsetData1.z);
+    printf("xOffset2: %x, yOffset2: %x, zOffset2: %x\n\n",offsetData2.x,offsetData2.y,offsetData2.z);
     
     double x1,y1,z1,x2,y2,z2;
     
@@ -403,7 +476,7 @@ int main()
      *---------------------------------------------------------------------*/
     
     return MRAA_SUCCESS;
-    //return 0;
+    return 0;
 }
 
 
@@ -674,6 +747,77 @@ BNO055_RETURN_FUNCTION_TYPE bno055_get_mag_calib_stat(u8 *v_mag_calib_u8, struct
     {
         com_rslt = ERROR;
     }
+    
+    return com_rslt;
+}
+
+BNO055_RETURN_FUNCTION_TYPE bno055_read_mag_offset(struct bno055_mag_offset_t  *mag_offset, struct bno055_t *bno055)
+{
+    /* Variable used to return value of
+     communication routine*/
+    BNO055_RETURN_FUNCTION_TYPE com_rslt = ERROR;
+    /* Array holding the mag offset values
+     v_data_u8[INDEX_ZERO] - offset x->LSB
+     v_data_u8[INDEX_ONE] - offset x->MSB
+     v_data_u8[INDEX_TWO] - offset y->LSB
+     v_data_u8[INDEX_THREE] - offset y->MSB
+     v_data_u8[INDEX_FOUR] - offset z->LSB
+     v_data_u8[INDEX_FIVE] - offset z->MSB
+     */
+    u8 v_data_u8[ARRAY_SIZE_SIX] = {
+        BNO055_ZERO_U8X, BNO055_ZERO_U8X,
+        BNO055_ZERO_U8X, BNO055_ZERO_U8X,
+        BNO055_ZERO_U8X, BNO055_ZERO_U8X};
+    s8 v_stat_s8 = ERROR;
+    /* Check the struct p_bno055 is empty */
+
+    /*condition check for page, mag offset is
+        available in the page zero*/
+    if (bno055->page_id != PAGE_ZERO)
+    /* Write the page zero*/
+        v_stat_s8 = bno055_write_page_id(PAGE_ZERO, bno055);
+        if ((v_stat_s8 == SUCCESS) ||(bno055->page_id == PAGE_ZERO))
+        {
+            /* Read mag offset value it the six bytes of data */
+            com_rslt = BNO055_I2C_bus_read(bno055->dev_addr, BNO055_MAG_OFFSET_X_LSB__REG,v_data_u8, BNO055_SIX_U8X);
+            if (com_rslt == SUCCESS) {
+                /* Read mag x offset value*/
+                v_data_u8[INDEX_ZERO] = BNO055_GET_BITSLICE(v_data_u8[INDEX_ZERO],BNO055_MAG_OFFSET_X_LSB);
+                v_data_u8[INDEX_ONE] = BNO055_GET_BITSLICE(v_data_u8[INDEX_ONE],BNO055_MAG_OFFSET_X_MSB);
+                mag_offset->x = (s16)((((s32)(s8)(v_data_u8[INDEX_ONE])) <<(BNO055_SHIFT_8_POSITION)) |(v_data_u8[INDEX_ZERO]));
+                
+                /* Read mag y offset value*/
+                v_data_u8[INDEX_TWO] = BNO055_GET_BITSLICE(v_data_u8[INDEX_TWO],BNO055_MAG_OFFSET_Y_LSB);
+                v_data_u8[INDEX_THREE] =BNO055_GET_BITSLICE(v_data_u8[INDEX_THREE],BNO055_MAG_OFFSET_Y_MSB);
+                mag_offset->y = (s16)((((s32)(s8)(v_data_u8[INDEX_THREE])) <<(BNO055_SHIFT_8_POSITION))| (v_data_u8[INDEX_TWO]));
+                
+                /* Read mag z offset value*/
+                v_data_u8[INDEX_FOUR] = BNO055_GET_BITSLICE(v_data_u8[INDEX_FOUR], BNO055_MAG_OFFSET_Z_LSB);
+                v_data_u8[INDEX_FIVE] = BNO055_GET_BITSLICE(v_data_u8[INDEX_FIVE], BNO055_MAG_OFFSET_Z_MSB);
+                mag_offset->z = (s16)((((s32)(s8)(v_data_u8[INDEX_FIVE])) << (BNO055_SHIFT_8_POSITION)) | (v_data_u8[INDEX_FOUR]));
+                
+                /* Read mag radius value
+                 it the two bytes of data */
+                com_rslt += BNO055_I2C_bus_read(bno055->dev_addr, BNO055_MAG_RADIUS_LSB__REG, v_data_u8, BNO055_TWO_U8X);
+                if (com_rslt == SUCCESS) {
+                    /* Array holding the mag radius values
+                     v_data_u8[INDEX_ZERO] - radius->LSB
+                     v_data_u8[INDEX_ONE] - radius->MSB
+                     */
+                    v_data_u8[INDEX_ZERO] = BNO055_GET_BITSLICE(v_data_u8[INDEX_ZERO],BNO055_MAG_RADIUS_LSB);
+                    v_data_u8[INDEX_ONE] = BNO055_GET_BITSLICE(v_data_u8[INDEX_ONE], BNO055_MAG_RADIUS_MSB);
+                    mag_offset->r = (s16)((((s32)(s8)(v_data_u8[INDEX_ONE])) << (BNO055_SHIFT_8_POSITION)) | (v_data_u8[INDEX_ZERO]));
+                }
+                else
+                {
+                    com_rslt = ERROR;
+                }
+            }
+            else
+            {
+                com_rslt = ERROR;
+            }
+        }
     
     return com_rslt;
 }
