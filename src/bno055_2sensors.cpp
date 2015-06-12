@@ -455,6 +455,10 @@ int main()
 	int seq_counter = 0;
 	int seq_num = 1;
 	
+	FILE * pFile;
+	
+	pFile = fopen ("data.txt","w");
+	
     while (1)
     {
         if(running == -1)
@@ -517,6 +521,10 @@ int main()
 		printf("Seq %d:\n", seq_num);
         printf("%f\t%f\t%f\t\n",x1_new, y1_new, z1_new);
         printf("%f\t%f\t%f\t\n",x2_new, y2_new, z2_new);
+        fprintf (pFile, "Seq %d:\n", seq_num);
+        fprintf (pFile, "%f\t%f\t%f\t\n",x1_new, y1_new, z1_new);
+        fprintf (pFile, "%f\t%f\t%f\t\n",x2_new, y2_new, z2_new);
+        
         seq_counter++;
         if (seq_counter == 1000)
         {	
@@ -529,8 +537,8 @@ int main()
         	break;
         }	
     }
-
-    //read some values here
+    
+    fclose (pFile);
 
     /*-----------------------------------------------------------------------*
      ************************* START DE-INITIALIZATION ***********************
