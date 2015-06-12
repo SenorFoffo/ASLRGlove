@@ -2,6 +2,7 @@
 #include <unistd.h>
 #include <signal.h>
 #include <stdint.h>
+#include <iostream>
 #include <thread>
 
 #include "mraa.hpp"
@@ -328,11 +329,11 @@ int running = 0;
 bool breakLoop = false;
 uint8_t rx_tx_buf[ARRAY_SIZE_SIX];
 mraa::I2c* i2c;
-
+std::thread br (LoopBreaker);
 
 int main()
 {
-	std::thread br (LoopBreaker);
+
     s32 comres1 = ERROR;
     s32 comres2 = ERROR;
 
@@ -376,9 +377,8 @@ int main()
     sensor1.dev_addr = BNO055_I2C_ADDR1;
     sensor2.dev_addr = BNO055_I2C_ADDR2;
 
-
-    printf("%x\n\n",sensor1.dev_addr);
-    printf("%x\n\n",sensor2.dev_addr);
+    //printf("%x\n\n",sensor1.dev_addr);
+    //printf("%x\n\n",sensor2.dev_addr);
 
     comres1 = bno055_init(&sensor1);
     comres2 = bno055_init(&sensor2);
@@ -393,15 +393,14 @@ int main()
     /*---------------------------------------------------------------------*
      ************************* END INITIALIZATION **********************
      *---------------------------------------------------------------------*/
-    printf("xOffset1: %x, yOffset1: %x, zOffset1: %x\n",offsetData1.x,offsetData1.y,offsetData1.z);
-        printf("xOffset2: %x, yOffset2: %x, zOffset2: %x\n\n",offsetData2.x,offsetData2.y,offsetData2.z);
-
+    //printf("xOffset1: %x, yOffset1: %x, zOffset1: %x\n",offsetData1.x,offsetData1.y,offsetData1.z);
+    //printf("xOffset2: %x, yOffset2: %x, zOffset2: %x\n\n",offsetData2.x,offsetData2.y,offsetData2.z);
 
     bno055_read_mag_offset(&offsetData1, &sensor1);
     bno055_read_mag_offset(&offsetData1, &sensor2);
 
-    printf("xOffset1: %x, yOffset1: %x, zOffset1: %x\n",offsetData1.x,offsetData1.y,offsetData1.z);
-    printf("xOffset2: %x, yOffset2: %x, zOffset2: %x\n\n",offsetData2.x,offsetData2.y,offsetData2.z);
+    //printf("xOffset1: %x, yOffset1: %x, zOffset1: %x\n",offsetData1.x,offsetData1.y,offsetData1.z);
+    //printf("xOffset2: %x, yOffset2: %x, zOffset2: %x\n\n",offsetData2.x,offsetData2.y,offsetData2.z);
 
     double x1,y1,z1,x2,y2,z2;
 
@@ -456,10 +455,13 @@ int main()
         z2 = (double)(mag_dataz2/MAG_DIV_UT);
 
 
-        printf("x1: %f, y1: %f, z1: %f\n",x1,y1,z1);
-        printf("x2: %f, y2: %f, z2: %f\n\n",x2,y2,z2);
+        printf("%f %f %f\n",x1,y1,z1);
+        printf("%f %f %f\n\n",x2,y2,z2);
         if (breakLoop)
+        {
+        	//br.~thread();
         	break;
+        }
     }
 
     //read some values here
@@ -501,13 +503,16 @@ void LoopBreaker()
 	char c;
 	while (1)
 	{
-		scanf("%c", c);
+		scanf("%s", &c);
 		if (c == 's')
 		{
 			breakLoop = true;
+			//std::terminate();
+			br.detach();
 			break;
 		}
-	}	 
+	}
+
 }
 
 
