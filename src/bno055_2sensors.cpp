@@ -2,6 +2,7 @@
 #include <unistd.h>
 #include <signal.h>
 #include <stdint.h>
+#include <thread>
 
 #include "mraa.hpp"
 #include "math.h"
@@ -296,6 +297,7 @@ BNO055_RETURN_FUNCTION_TYPE bno055_get_mag_calib_stat(u8 *v_mag_calib_u8, struct
 BNO055_RETURN_FUNCTION_TYPE bno055_read_mag_offset(struct bno055_mag_offset_t  *mag_offset, struct bno055_t *bno055);
 //End of functions
 
+void LoopBreaker();
 void sig_handler(int signo);
 
 struct bno055_t {
@@ -323,12 +325,14 @@ struct bno055_mag_offset_t {
 //static struct bno055_t *bno055;
 bno055_t sensor1, sensor2;
 int running = 0;
+bool breakLoop = false;
 uint8_t rx_tx_buf[ARRAY_SIZE_SIX];
 mraa::I2c* i2c;
 
 
 int main()
 {
+	std::thread br (LoopBreaker);
     s32 comres1 = ERROR;
     s32 comres2 = ERROR;
 
@@ -401,7 +405,7 @@ int main()
 
     double x1,y1,z1,x2,y2,z2;
 
-    for (int i = 0; i < 10; i++)
+    while (1)
     {
         if(running == -1)
         {
@@ -409,11 +413,11 @@ int main()
             break;
         }
 
-        bno055_get_mag_calib_stat(&mag_calib_status1, &sensor1);
+        //bno055_get_mag_calib_stat(&mag_calib_status1, &sensor1);
 
-        bno055_get_mag_calib_stat(&mag_calib_status2, &sensor2);
+        //bno055_get_mag_calib_stat(&mag_calib_status2, &sensor2);
 
-        printf("%x\t%x\n", mag_calib_status1, mag_calib_status2);
+        //printf("%x\t%x\n", mag_calib_status1, mag_calib_status2);
 
         /*Read the six byte value of mag xyz from first sensor*/
         BNO055_I2C_bus_read(sensor1.dev_addr,BNO055_MAG_DATA_X_LSB_VALUEX__REG,rx_tx_buf, BNO055_SIX_U8X);
@@ -454,6 +458,8 @@ int main()
 
         printf("x1: %f, y1: %f, z1: %f\n",x1,y1,z1);
         printf("x2: %f, y2: %f, z2: %f\n\n",x2,y2,z2);
+        if (breakLoop)
+        	break;
     }
 
     //read some values here
@@ -488,6 +494,20 @@ void sig_handler(int signo)
         printf("closing nicely\n");
         running = -1;
     }
+}
+
+void LoopBreaker()
+{
+	char c;
+	while (1)
+	{
+		scanf("%c", c);
+		if (c == 's')
+		{
+			breakLoop = true;
+			break;
+		}
+	}	 
 }
 
 
