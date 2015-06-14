@@ -6,13 +6,15 @@
 
 #include<string.h>    //strlen
 #include<string>  //string
-#include <sstream>  
+#include <sstream>
 #include<sys/socket.h>    //socket
 #include<arpa/inet.h> //inet_addr
 #include<netdb.h> //hostent
 
 #include "mraa.hpp"
 #include "math.h"
+
+using namespace std;
 
 //Definitions
 
@@ -310,6 +312,7 @@ void sig_handler(int signo);
 //TCP functions
 bool tcp_conn(string address , int port);
 bool tcp_send_data(string data);
+struct sockaddr_in server;
 
 struct bno055_t {
     u8 chip_id;/**< chip_id of bno055 */
@@ -340,10 +343,12 @@ bool breakLoop = false;
 uint8_t rx_tx_buf[ARRAY_SIZE_SIX];
 mraa::I2c* i2c;
 std::thread br (LoopBreaker);
+int sock = -1; //for the tcp socket
+
 
 int main(int argc, char** argv)
 {
-		
+
     s32 comres1 = ERROR;
     s32 comres2 = ERROR;
 
@@ -365,28 +370,31 @@ int main(int argc, char** argv)
     s16 mag_datay2  = BNO055_ZERO_U8X;
     /* variable used to read the mag z data from the second sensor*/
     s16 mag_dataz2  = BNO055_ZERO_U8X;
-	
-	
+
+
 	//TCP Client variables
-	int sock = -1;
-    std::string address = "";
+
+    string address = "";
     int port = 1000;
-    struct sockaddr_in server;
-    
-    if (argc > 0) 
+
+
+   /* if (argc > 1)
     {
 
     	address = argv[1];
-    	if (argc > 1)
-    		port = stoi(argv[2]);
+    	if (argc > 2)
+    		port = atoi(argv[2]);
 
   	}
   	else
-  		return 0;
-     
-    bool connect = conn(address, port);
-    if (connect == false)
-    	return 0;
+  	{
+  		breakLoop=true;
+  	}
+
+    bool connect = false;*/
+    //connect = tcp_conn(address, port);
+    //if (connect == false)
+    	//breakLoop=true;
 
     signal(SIGINT, sig_handler);
 
@@ -408,8 +416,8 @@ int main(int argc, char** argv)
     sensor2.dev_addr = BNO055_I2C_ADDR2;
 
 
-    printf("%x\n\n",sensor1.dev_addr);
-    printf("%x\n\n",sensor2.dev_addr);
+    /*printf("%x\n\n",sensor1.dev_addr);
+    printf("%x\n\n",sensor2.dev_addr);*/
 
     comres1 = bno055_init(&sensor1);
     comres2 = bno055_init(&sensor2);
@@ -490,9 +498,11 @@ int main(int argc, char** argv)
 
 	pFile = fopen ("data.txt","w");
 
-	string feedback_data = "";
+	//string feedback_data = "";
+	stringstream feedback_data;
 	printf("Seq %d:\n", seq_num);
 	fprintf (pFile, "Seq %d:\n", seq_num);
+	int feedbackcounter = 0;//please remove when resolved
     while (1)
     {
         if(running == -1)
@@ -552,17 +562,23 @@ int main(int argc, char** argv)
 		z2_new = z2 - z2_offset;
 
 
-		
-		feedback_data = "";
-		feedback_data << x1_new << " " << y1_new << " " << z1_new  << " " <<  
-						 x2_new << " " << y2_new << " " << z2_new;
-		tcp_send_data(feedback_data);
-        
-       	printf("%f %f %f\n",x1_new, y1_new, z1_new);
-       	printf("%f %f %f\n",x2_new, y2_new, z2_new);
-        
+
+		//feedback_data = "";
+		feedback_data.str() = "";
+		/*if (feedbackcounter == 1000)
+		{*/
+			feedback_data << x1_new << " " << y1_new << " " << z1_new  << " " << x2_new << " " << y2_new << " " << z2_new << "\n";
+		/*	feedbackcounter = 0;
+		}
+		feedbackcounter++;*/
+		//tcp_send_data(feedback_data.str());
+			double dummy = 124;
+		printf("%f %f %f %f %f %f %f\n",dummy,x1_new, y1_new, z1_new, x2_new, y2_new, z2_new);
+     	//printf("%f %f %f\n",x1_new, y1_new, z1_new);
+       	//printf("%f %f %f\n\n",x2_new, y2_new, z2_new);
+
         fprintf (pFile, "%f\t%f\t%f\t\n",x1_new, y1_new, z1_new);
-        fprintf (pFile, "%f\t%f\t%f\t\n",x2_new, y2_new, z2_new);
+        fprintf (pFile, "%f\t%f\t%f\t\n\n",x2_new, y2_new, z2_new);
 
         seq_counter++;
         if (seq_counter == 1000)
@@ -973,57 +989,58 @@ bool tcp_conn(string address , int port)
         {
             perror("Could not create socket");
         }
-         
+
         printf("Socket created\n");
     }
     else    {   /* OK , nothing */  }
-     
+
     //setup address structure
     if(inet_addr(address.c_str()) == -1)
     {
         struct hostent *he;
         struct in_addr **addr_list;
-         
+
         //resolve the hostname, its not an ip address
         if ( (he = gethostbyname( address.c_str() ) ) == NULL)
         {
             //gethostbyname failed
             herror("gethostbyname");
             printf("Failed to resolve hostname\n");
-             
+
             return false;
         }
-         
+
         //Cast the h_addr_list to in_addr , since h_addr_list also has the ip address in long format only
         addr_list = (struct in_addr **) he->h_addr_list;
- 
+
         for(int i = 0; addr_list[i] != NULL; i++)
         {
             //strcpy(ip , inet_ntoa(*addr_list[i]) );
             server.sin_addr = *addr_list[i];
-             
-            printf("%x resolved to %x\n", address, inet_ntoa(*addr_list[i]));
-             
+
+            //printf("%s resolved to %x\n", address, inet_ntoa(*addr_list[i]));
+            printf("Connection established\n");
+
             break;
         }
     }
-     
+
     //plain ip address
     else
     {
         server.sin_addr.s_addr = inet_addr( address.c_str() );
     }
-     
+
     server.sin_family = AF_INET;
     server.sin_port = htons( port );
-     
+
     //Connect to remote server
     if (connect(sock , (struct sockaddr *)&server , sizeof(server)) < 0)
     {
         perror("connect failed. Error");
         return 1;
     }
-     
+
     printf("Connected\n");
     return true;
 }
@@ -1033,10 +1050,11 @@ bool tcp_send_data(string data)
     //Send some data
     if( send(sock , data.c_str() , strlen( data.c_str() ) , 0) < 0)
     {
+    	printf("Send failed\n");
         perror("Send failed : ");
         return false;
     }
-     
+
     return true;
 }
 
