@@ -1071,5 +1071,3 @@ void BNO055_delay_msek(u32 msek)
     /*Here you can write your own delay routine*/
     usleep(1000*ms);
 }
-Status API Training Shop Blog About Help
-© 2015 GitHub, Inc. Terms Privacy Security Contact
