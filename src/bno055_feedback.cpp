@@ -310,9 +310,9 @@ void LoopBreaker();
 void sig_handler(int signo);
 
 //TCP functions
-bool tcp_conn(int port);
+bool tcp_conn(string address , int port);
 bool tcp_send_data(string data);
-struct sockaddr_in serv_addr, cli_addr;
+struct sockaddr_in server;
 
 struct bno055_t {
     u8 chip_id;/**< chip_id of bno055 */
@@ -343,9 +343,8 @@ bool breakLoop = false;
 uint8_t rx_tx_buf[ARRAY_SIZE_SIX];
 mraa::I2c* i2c;
 std::thread br (LoopBreaker);
-//for the tcp socket
-int sockfd = -1;
-int newsockfd = -1;
+int sock = -1; //for the tcp socket
+
 
 int main(int argc, char** argv)
 {
@@ -379,19 +378,20 @@ int main(int argc, char** argv)
     int port = 1000;
 
 
-    if (argc > 1)
+   /* if (argc > 1)
     {
-    	port = atoi(argv[1]);
-    		
+    	address = argv[1];
+    	if (argc > 2)
+    		port = atoi(argv[2]);
   	}
   	else
   	{
-  		port = 1000;
+  		breakLoop=true;
   	}
     bool connect = false;*/
-    connect = tcp_conn(port);
-    if (connect == false)
-    	breakLoop=true;
+    //connect = tcp_conn(address, port);
+    //if (connect == false)
+    	//breakLoop=true;
 
     signal(SIGINT, sig_handler);
 
@@ -452,9 +452,6 @@ int main(int argc, char** argv)
     double last_10_x2[10];
     double last_10_y2[10];
     double last_10_z2[10];
-    
-    int last_10_counter = 0;
-    double x1_mean, y1_mean, z1_mean, x2_mean, y2_mean, z2_mean;
 
 
 	//read data first once, then have it as an offset (-ve) for the next readings
@@ -463,17 +460,17 @@ int main(int argc, char** argv)
     rx_tx_buf[INDEX_ZERO] = BNO055_GET_BITSLICE(rx_tx_buf[INDEX_ZERO],BNO055_MAG_DATA_X_LSB_VALUEX);
     rx_tx_buf[INDEX_ONE] = BNO055_GET_BITSLICE(rx_tx_buf[INDEX_ONE], BNO055_MAG_DATA_X_MSB_VALUEX);
     mag_datax1 = ((((s32)((s8)rx_tx_buf[INDEX_ONE])) << BNO055_SHIFT_8_POSITION) |(rx_tx_buf[INDEX_ZERO]));
-    x1_raw = (double)(mag_datax1/MAG_DIV_UT);
+    x1 = (double)(mag_datax1/MAG_DIV_UT);
     /* Data Y*/
     rx_tx_buf[INDEX_TWO] = BNO055_GET_BITSLICE(rx_tx_buf[INDEX_TWO],BNO055_MAG_DATA_Y_LSB_VALUEY);
     rx_tx_buf[INDEX_THREE] = BNO055_GET_BITSLICE(rx_tx_buf[INDEX_THREE], BNO055_MAG_DATA_Y_MSB_VALUEY);
     mag_datay1 = ((((s32)((s8)rx_tx_buf[INDEX_THREE])) <<BNO055_SHIFT_8_POSITION) |(rx_tx_buf[INDEX_TWO]));
-    y1_raw = (double)(mag_datay1/MAG_DIV_UT);
+    y1 = (double)(mag_datay1/MAG_DIV_UT);
     /* Data Z*/
     rx_tx_buf[INDEX_FOUR] = BNO055_GET_BITSLICE(rx_tx_buf[INDEX_FOUR],BNO055_MAG_DATA_Z_LSB_VALUEZ);
     rx_tx_buf[INDEX_FIVE] = BNO055_GET_BITSLICE(rx_tx_buf[INDEX_FIVE],BNO055_MAG_DATA_Z_MSB_VALUEZ);
     mag_dataz1 = ((((s32)((s8)rx_tx_buf[INDEX_FIVE])) << BNO055_SHIFT_8_POSITION)| (rx_tx_buf[INDEX_FOUR]));
-    z1_raw = (double)(mag_dataz1/MAG_DIV_UT);
+    z1 = (double)(mag_dataz1/MAG_DIV_UT);
 
     /*Read the six byte value of mag xyz from second sesnor*/
     BNO055_I2C_bus_read(sensor2.dev_addr,BNO055_MAG_DATA_X_LSB_VALUEX__REG,rx_tx_buf, BNO055_SIX_U8X);
@@ -481,24 +478,24 @@ int main(int argc, char** argv)
     rx_tx_buf[INDEX_ZERO] = BNO055_GET_BITSLICE(rx_tx_buf[INDEX_ZERO],BNO055_MAG_DATA_X_LSB_VALUEX);
     rx_tx_buf[INDEX_ONE] = BNO055_GET_BITSLICE(rx_tx_buf[INDEX_ONE], BNO055_MAG_DATA_X_MSB_VALUEX);
     mag_datax2 = ((((s32)((s8)rx_tx_buf[INDEX_ONE])) << BNO055_SHIFT_8_POSITION) |(rx_tx_buf[INDEX_ZERO]));
-    x2_raw = (double)(mag_datax2/MAG_DIV_UT);
+    x2 = (double)(mag_datax2/MAG_DIV_UT);
     /* Data Y*/
     rx_tx_buf[INDEX_TWO] = BNO055_GET_BITSLICE(rx_tx_buf[INDEX_TWO],BNO055_MAG_DATA_Y_LSB_VALUEY);
     rx_tx_buf[INDEX_THREE] = BNO055_GET_BITSLICE(rx_tx_buf[INDEX_THREE], BNO055_MAG_DATA_Y_MSB_VALUEY);
     mag_datay2 = ((((s32)((s8)rx_tx_buf[INDEX_THREE])) <<BNO055_SHIFT_8_POSITION) |(rx_tx_buf[INDEX_TWO]));
-    y2_raw = (double)(mag_datay2/MAG_DIV_UT);
+    y2 = (double)(mag_datay2/MAG_DIV_UT);
     /* Data Z*/
     rx_tx_buf[INDEX_FOUR] = BNO055_GET_BITSLICE(rx_tx_buf[INDEX_FOUR],BNO055_MAG_DATA_Z_LSB_VALUEZ);
     rx_tx_buf[INDEX_FIVE] = BNO055_GET_BITSLICE(rx_tx_buf[INDEX_FIVE],BNO055_MAG_DATA_Z_MSB_VALUEZ);
     mag_dataz2 = ((((s32)((s8)rx_tx_buf[INDEX_FIVE])) << BNO055_SHIFT_8_POSITION)| (rx_tx_buf[INDEX_FOUR]));
-    z2_raw = (double)(mag_dataz2/MAG_DIV_UT);
+    z2 = (double)(mag_dataz2/MAG_DIV_UT);
 
-	x1_offset = x1_raw;
-	y1_offset = y1_raw;
-	z1_offset = z1_raw;
-	x2_offset = x2_raw;
-	y2_offset = y2_raw;
-	z2_offset = z2_raw;
+	x1_offset = x1;
+	y1_offset = y1;
+	z1_offset = z1;
+	x2_offset = x2;
+	y2_offset = y2;
+	z2_offset = z2;
 
 
 	int seq_counter = 0;
@@ -512,7 +509,7 @@ int main(int argc, char** argv)
 	stringstream feedback_data;
 	printf("Seq %d:\n", seq_num);
 	fprintf (pFile, "Seq %d:\n", seq_num);
-	//int feedbackcounter = 0;//please remove when resolved
+	int feedbackcounter = 0;//please remove when resolved
     while (1)
     {
         if(running == -1)
@@ -533,17 +530,17 @@ int main(int argc, char** argv)
         rx_tx_buf[INDEX_ZERO] = BNO055_GET_BITSLICE(rx_tx_buf[INDEX_ZERO],BNO055_MAG_DATA_X_LSB_VALUEX);
         rx_tx_buf[INDEX_ONE] = BNO055_GET_BITSLICE(rx_tx_buf[INDEX_ONE], BNO055_MAG_DATA_X_MSB_VALUEX);
         mag_datax1 = ((((s32)((s8)rx_tx_buf[INDEX_ONE])) << BNO055_SHIFT_8_POSITION) |(rx_tx_buf[INDEX_ZERO]));
-        x1_raw = (double)(mag_datax1/MAG_DIV_UT);
+        x1 = (double)(mag_datax1/MAG_DIV_UT);
         /* Data Y*/
         rx_tx_buf[INDEX_TWO] = BNO055_GET_BITSLICE(rx_tx_buf[INDEX_TWO],BNO055_MAG_DATA_Y_LSB_VALUEY);
         rx_tx_buf[INDEX_THREE] = BNO055_GET_BITSLICE(rx_tx_buf[INDEX_THREE], BNO055_MAG_DATA_Y_MSB_VALUEY);
         mag_datay1 = ((((s32)((s8)rx_tx_buf[INDEX_THREE])) <<BNO055_SHIFT_8_POSITION) |(rx_tx_buf[INDEX_TWO]));
-        y1_raw = (double)(mag_datay1/MAG_DIV_UT);
+        y1 = (double)(mag_datay1/MAG_DIV_UT);
         /* Data Z*/
         rx_tx_buf[INDEX_FOUR] = BNO055_GET_BITSLICE(rx_tx_buf[INDEX_FOUR],BNO055_MAG_DATA_Z_LSB_VALUEZ);
         rx_tx_buf[INDEX_FIVE] = BNO055_GET_BITSLICE(rx_tx_buf[INDEX_FIVE],BNO055_MAG_DATA_Z_MSB_VALUEZ);
         mag_dataz1 = ((((s32)((s8)rx_tx_buf[INDEX_FIVE])) << BNO055_SHIFT_8_POSITION)| (rx_tx_buf[INDEX_FOUR]));
-        z1_raw = (double)(mag_dataz1/MAG_DIV_UT);
+        z1 = (double)(mag_dataz1/MAG_DIV_UT);
 
         /*Read the six byte value of mag xyz from second sesnor*/
         BNO055_I2C_bus_read(sensor2.dev_addr,BNO055_MAG_DATA_X_LSB_VALUEX__REG,rx_tx_buf, BNO055_SIX_U8X);
@@ -551,56 +548,80 @@ int main(int argc, char** argv)
         rx_tx_buf[INDEX_ZERO] = BNO055_GET_BITSLICE(rx_tx_buf[INDEX_ZERO],BNO055_MAG_DATA_X_LSB_VALUEX);
         rx_tx_buf[INDEX_ONE] = BNO055_GET_BITSLICE(rx_tx_buf[INDEX_ONE], BNO055_MAG_DATA_X_MSB_VALUEX);
         mag_datax2 = ((((s32)((s8)rx_tx_buf[INDEX_ONE])) << BNO055_SHIFT_8_POSITION) |(rx_tx_buf[INDEX_ZERO]));
-        x2_raw = (double)(mag_datax2/MAG_DIV_UT);
+        x2 = (double)(mag_datax2/MAG_DIV_UT);
         /* Data Y*/
         rx_tx_buf[INDEX_TWO] = BNO055_GET_BITSLICE(rx_tx_buf[INDEX_TWO],BNO055_MAG_DATA_Y_LSB_VALUEY);
         rx_tx_buf[INDEX_THREE] = BNO055_GET_BITSLICE(rx_tx_buf[INDEX_THREE], BNO055_MAG_DATA_Y_MSB_VALUEY);
         mag_datay2 = ((((s32)((s8)rx_tx_buf[INDEX_THREE])) <<BNO055_SHIFT_8_POSITION) |(rx_tx_buf[INDEX_TWO]));
-        y2_raw = (double)(mag_datay2/MAG_DIV_UT);
+        y2 = (double)(mag_datay2/MAG_DIV_UT);
         /* Data Z*/
         rx_tx_buf[INDEX_FOUR] = BNO055_GET_BITSLICE(rx_tx_buf[INDEX_FOUR],BNO055_MAG_DATA_Z_LSB_VALUEZ);
         rx_tx_buf[INDEX_FIVE] = BNO055_GET_BITSLICE(rx_tx_buf[INDEX_FIVE],BNO055_MAG_DATA_Z_MSB_VALUEZ);
         mag_dataz2 = ((((s32)((s8)rx_tx_buf[INDEX_FIVE])) << BNO055_SHIFT_8_POSITION)| (rx_tx_buf[INDEX_FOUR]));
-        z2_raw = (double)(mag_dataz2/MAG_DIV_UT);
+        z2 = (double)(mag_dataz2/MAG_DIV_UT);
 
 
-		x1 = x1_raw - x1_offset;
-		y1 = y1_raw - y1_offset;
-		z1 = z1_raw - z1_offset;
-		x2 = x2_raw - x2_offset;
-		y2 = y2_raw - y2_offset;
-		z2 = z2_raw - z2_offset;
+        x1 = x1_raw - x1_offset;
+        y1 = y1_raw - y1_offset;
+        z1 = z1_raw - z1_offset;
+        x2 = x2_raw - x2_offset;
+        y2 = y2_raw - y2_offset;
+        z2 = z2_raw - z2_offset;
 
-		
-		vect_mag1 = sqrt(x1 * x1 + y1 * y1 + z1 * z1);
-		vect_mag2 = sqrt(x2 * x2 + y2 * y2 + z2 * z2);
-		theta1_x = acos(x1/vect_mag1);
-		theta1_y = acos(y1/vect_mag1);
-		theta1_z = acos(z1/vect_mag1);
-		theta2_x = acos(x2/vect_mag2);
-		theta2_y = acos(y2/vect_mag2);
-		theta2_z = acos(z2/vect_mag2);
-		theta12 = acos((x1*x2 + y1*y2 + z1*z2)/(vect_mag1*vect_mag2));
- 		
- 		
-		
+
+        vect_mag1 = sqrt(x1 * x1 + y1 * y1 + z1 * z1);
+        vect_mag2 = sqrt(x2 * x2 + y2 * y2 + z2 * z2);
+
+        if(vect_mag1 > 0)
+        {
+        	theta1_x = acos(x1/vect_mag1);
+        	theta1_y = acos(y1/vect_mag1);
+        	theta1_z = acos(z1/vect_mag1);
+        }
+        else
+        {
+        	theta1_x = 0;
+        	theta1_y = 0;
+        	theta1_z = 0;
+        }
+        if (vect_mag2 > 0)
+        {
+        	theta2_x = acos(x2/vect_mag2);
+        	theta2_y = acos(y2/vect_mag2);
+        	theta2_z = acos(z2/vect_mag2);
+        }
+        else
+        {
+        	theta1_x = 0;
+        	theta1_y = 0;
+        	theta1_z = 0;
+        }
+        if(vect_mag1*vect_mag2 > 0)
+        {
+        	theta12 = acos((x1*x2 + y1*y2 + z1*z2)/(vect_mag1*vect_mag2));
+        }
+        else
+        {
+        	theta12 = 0;
+        }
+
 		//feedback_data = "";
 		//feedback_data.str() = "";
 		/*if (feedbackcounter == 1000)
 		{*/
-		//	feedback_data << x1_new << " " << y1_new << " " << z1_new  << " " << x2_new << " " << y2_new << " " << z2_new << "\n";
+			//feedback_data << x1_new << " " << y1_new << " " << z1_new  << " " << x2_new << " " << y2_new << " " << z2_new << "\n";
 		/*	feedbackcounter = 0;
 		}
 		feedbackcounter++;*/
 		//tcp_send_data(feedback_data.str());
-		//	double dummy = 124;
+        //double dummy = 124;
 		//printf("%f %f %f %f %f %f %f\n",dummy,x1_new, y1_new, z1_new, x2_new, y2_new, z2_new);
      	//printf("%f %f %f\n",x1_new, y1_new, z1_new);
        	//printf("%f %f %f\n\n",x2_new, y2_new, z2_new);
 
-        fprintf (pFile, "%f\t%f\t%f\t\n",x1_new, y1_new, z1_new);
-        fprintf (pFile, "%f\t%f\t%f\t\n\n",x2_new, y2_new, z2_new);
-
+       // fprintf (pFile, "%f\t%f\t%f\t\n",x1_new, y1_new, z1_new);
+       // fprintf (pFile, "%f\t%f\t%f\t\n\n",x2_new, y2_new, z2_new);
+        fprintf (pFile, "%f \t %f \t %f \t %f \t %f \t %f \t %f \t %f \t %f\n",vect_mag1, vect_mag2, theta1_x,theta1_y,theta1_z,theta2_x,theta2_y,theta2_z,theta12);
         seq_counter++;
         if (seq_counter == 1000)
         {
@@ -675,9 +696,7 @@ BNO055_RETURN_FUNCTION_TYPE bno055_init(struct bno055_t *bno055)
     u8 v_page_zero_u8 = PAGE_ZERO;
     /* Array holding the Software revision id
      */
-    u8 a_SW_ID_u8[ARRAY_SIZE_TWO] = {
-
-        BNO055_ZERO_U8X, BNO055_ZERO_U8X};
+    u8 a_SW_ID_u8[ARRAY_SIZE_TWO] = {BNO055_ZERO_U8X, BNO055_ZERO_U8X};
     /* Write the default page as zero*/
     com_rslt = BNO055_I2C_bus_write(bno055->dev_addr,BNO055_PAGE_ID__REG, &v_page_zero_u8, BNO055_ONE_U8X);
     /* Read the chip id of the sensor from page
@@ -999,62 +1018,83 @@ BNO055_RETURN_FUNCTION_TYPE bno055_read_mag_offset(struct bno055_mag_offset_t  *
     return com_rslt;
 }
 
-bool tcp_conn(int port)
+bool tcp_conn(string address , int port)
 {
-	* First call to socket() function */
-	sockfd = socket(AF_INET, SOCK_STREAM, 0);
-   
-	if (sockfd < 0)
-	{
-		perror("ERROR opening socket");
-		printf("ERROR opening socket");
-		return false;
-	}
-   
-	/* Initialize socket structure */
-	bzero((char *) &serv_addr, sizeof(serv_addr));
-   
-   	serv_addr.sin_family = AF_INET;
-   	serv_addr.sin_addr.s_addr = INADDR_ANY;
-   	serv_addr.sin_port = htons(port);
-   
-   	/* Now bind the host address using bind() call.*/
-   	if (bind(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0)
+    //create socket if it is not already created
+    if(sock == -1)
     {
-      	perror("ERROR on binding");
-      	printf("ERROR on binding");
-      	return false;
+        //Create socket
+        sock = socket(AF_INET , SOCK_STREAM , 0);
+        if (sock == -1)
+        {
+            perror("Could not create socket");
+        }
+
+        printf("Socket created\n");
     }
-      
-   	/* Now start listening for the clients, here process will
-   	* go in sleep mode and will wait for the incoming connection
-   	*/
-   
-   	listen(sockfd,5);
-   	clilen = sizeof(cli_addr);
-   
-   	/* Accept actual connection from the client */
-   	newsockfd = accept(sockfd, (struct sockaddr *)&cli_addr, &clilen);
-   	if (newsockfd < 0)
+    else    {   /* OK , nothing */  }
+
+    //setup address structure
+    if(inet_addr(address.c_str()) == -1)
     {
-      	perror("ERROR on accept");
-      	printf("ERROR on accept");
-      	return false;
+        struct hostent *he;
+        struct in_addr **addr_list;
+
+        //resolve the hostname, its not an ip address
+        if ( (he = gethostbyname( address.c_str() ) ) == NULL)
+        {
+            //gethostbyname failed
+            herror("gethostbyname");
+            printf("Failed to resolve hostname\n");
+
+            return false;
+        }
+
+        //Cast the h_addr_list to in_addr , since h_addr_list also has the ip address in long format only
+        addr_list = (struct in_addr **) he->h_addr_list;
+
+        for(int i = 0; addr_list[i] != NULL; i++)
+        {
+            //strcpy(ip , inet_ntoa(*addr_list[i]) );
+            server.sin_addr = *addr_list[i];
+
+            //printf("%s resolved to %x\n", address, inet_ntoa(*addr_list[i]));
+            printf("Connection established\n");
+
+            break;
+        }
     }
-    
-    printf("connection established");
+
+    //plain ip address
+    else
+    {
+        server.sin_addr.s_addr = inet_addr( address.c_str() );
+    }
+
+    server.sin_family = AF_INET;
+    server.sin_port = htons( port );
+
+    //Connect to remote server
+    if (connect(sock , (struct sockaddr *)&server , sizeof(server)) < 0)
+    {
+        perror("connect failed. Error");
+        return 1;
+    }
+
+    printf("Connected\n");
     return true;
 }
 
 bool tcp_send_data(string data)
 {
     //Send some data
-    if( send(newsockfd , data.c_str() , strlen( data.c_str() ) , 0) < 0)
+    if( send(sock , data.c_str() , strlen( data.c_str() ) , 0) < 0)
     {
     	printf("Send failed\n");
         perror("Send failed : ");
         return false;
     }
+
     return true;
 }
 
