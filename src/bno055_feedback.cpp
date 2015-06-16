@@ -310,9 +310,9 @@ void LoopBreaker();
 void sig_handler(int signo);
 
 //TCP functions
-bool tcp_conn(int port);
+bool tcp_conn(string address , int port);
 bool tcp_send_data(string data);
-struct sockaddr_in serv_addr, cli_addr;
+struct sockaddr_in server;
 
 struct bno055_t {
     u8 chip_id;/**< chip_id of bno055 */
@@ -343,9 +343,8 @@ bool breakLoop = false;
 uint8_t rx_tx_buf[ARRAY_SIZE_SIX];
 mraa::I2c* i2c;
 std::thread br (LoopBreaker);
-//for the tcp socket
-int sockfd = -1;
-int newsockfd = -1;
+int sock = -1; //for the tcp socket
+
 
 int main(int argc, char** argv)
 {
@@ -379,19 +378,23 @@ int main(int argc, char** argv)
     int port = 1000;
 
 
-    if (argc > 1)
+   /* if (argc > 1)
     {
-    	port = atoi(argv[1]);
-    		
+
+    	address = argv[1];
+    	if (argc > 2)
+    		port = atoi(argv[2]);
+
   	}
   	else
   	{
-  		port = 1000;
+  		breakLoop=true;
   	}
+
     bool connect = false;*/
-    connect = tcp_conn(port);
-    if (connect == false)
-    	breakLoop=true;
+    //connect = tcp_conn(address, port);
+    //if (connect == false)
+    	//breakLoop=true;
 
     signal(SIGINT, sig_handler);
 
@@ -975,62 +978,83 @@ BNO055_RETURN_FUNCTION_TYPE bno055_read_mag_offset(struct bno055_mag_offset_t  *
     return com_rslt;
 }
 
-bool tcp_conn(int port)
+bool tcp_conn(string address , int port)
 {
-	* First call to socket() function */
-	sockfd = socket(AF_INET, SOCK_STREAM, 0);
-   
-	if (sockfd < 0)
-	{
-		perror("ERROR opening socket");
-		printf("ERROR opening socket");
-		return false;
-	}
-   
-	/* Initialize socket structure */
-	bzero((char *) &serv_addr, sizeof(serv_addr));
-   
-   	serv_addr.sin_family = AF_INET;
-   	serv_addr.sin_addr.s_addr = INADDR_ANY;
-   	serv_addr.sin_port = htons(port);
-   
-   	/* Now bind the host address using bind() call.*/
-   	if (bind(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0)
+    //create socket if it is not already created
+    if(sock == -1)
     {
-      	perror("ERROR on binding");
-      	printf("ERROR on binding");
-      	return false;
+        //Create socket
+        sock = socket(AF_INET , SOCK_STREAM , 0);
+        if (sock == -1)
+        {
+            perror("Could not create socket");
+        }
+
+        printf("Socket created\n");
     }
-      
-   	/* Now start listening for the clients, here process will
-   	* go in sleep mode and will wait for the incoming connection
-   	*/
-   
-   	listen(sockfd,5);
-   	clilen = sizeof(cli_addr);
-   
-   	/* Accept actual connection from the client */
-   	newsockfd = accept(sockfd, (struct sockaddr *)&cli_addr, &clilen);
-   	if (newsockfd < 0)
+    else    {   /* OK , nothing */  }
+
+    //setup address structure
+    if(inet_addr(address.c_str()) == -1)
     {
-      	perror("ERROR on accept");
-      	printf("ERROR on accept");
-      	return false;
+        struct hostent *he;
+        struct in_addr **addr_list;
+
+        //resolve the hostname, its not an ip address
+        if ( (he = gethostbyname( address.c_str() ) ) == NULL)
+        {
+            //gethostbyname failed
+            herror("gethostbyname");
+            printf("Failed to resolve hostname\n");
+
+            return false;
+        }
+
+        //Cast the h_addr_list to in_addr , since h_addr_list also has the ip address in long format only
+        addr_list = (struct in_addr **) he->h_addr_list;
+
+        for(int i = 0; addr_list[i] != NULL; i++)
+        {
+            //strcpy(ip , inet_ntoa(*addr_list[i]) );
+            server.sin_addr = *addr_list[i];
+
+            //printf("%s resolved to %x\n", address, inet_ntoa(*addr_list[i]));
+            printf("Connection established\n");
+
+            break;
+        }
     }
-    
-    printf("connection established");
+
+    //plain ip address
+    else
+    {
+        server.sin_addr.s_addr = inet_addr( address.c_str() );
+    }
+
+    server.sin_family = AF_INET;
+    server.sin_port = htons( port );
+
+    //Connect to remote server
+    if (connect(sock , (struct sockaddr *)&server , sizeof(server)) < 0)
+    {
+        perror("connect failed. Error");
+        return 1;
+    }
+
+    printf("Connected\n");
     return true;
 }
 
 bool tcp_send_data(string data)
 {
     //Send some data
-    if( send(newsockfd , data.c_str() , strlen( data.c_str() ) , 0) < 0)
+    if( send(sock , data.c_str() , strlen( data.c_str() ) , 0) < 0)
     {
     	printf("Send failed\n");
         perror("Send failed : ");
         return false;
     }
+
     return true;
 }
 
