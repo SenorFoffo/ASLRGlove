@@ -623,7 +623,7 @@ int main(int argc, char** argv)
 
        // fprintf (pFile, "%f\t%f\t%f\t\n",x1_new, y1_new, z1_new);
        // fprintf (pFile, "%f\t%f\t%f\t\n\n",x2_new, y2_new, z2_new);
-        fprintf (pFile, "%f \t %f \t %f \t %f \t %f \t %f \t %f \t %f \t %f\n",vect_mag1, vect_mag1, theta1q,theta2f,theta2q,theta2q,thetaBetween12);
+        fprintf (pFile, "%f \t %f \t %f \t %f \t %f \t %f \t %f \t %f \t %f\n",vect_mag1, vect_mag2, theta1q,theta2f,theta2q,theta2q,thetaBetween12);
         seq_counter++;
         if (seq_counter == 1000)
         {
