@@ -13,8 +13,10 @@
 
 #include "mraa.hpp"
 #include "math.h"
+#include "GRT.h"
 
 using namespace std;
+using namespace GRT;
 
 //Definitions
 
@@ -398,6 +400,24 @@ int main(int argc, char** argv)
 	unsigned char mag_calib_status1 = 0;
 	unsigned char mag_calib_status2 = 0;
 
+	/*---------------------------------------------------------------------*
+	 ************************* start GRT **********************
+	 *---------------------------------------------------------------------*/
+
+	ANBC anbc;
+	anbc.setNullRejectionCoeff( 10 );
+	anbc.enableScaling( true );
+	anbc.enableNullRejection( true );
+	vector< double > inputVector;
+	for(int i = 0; i < 7; i++)
+		inputVector.push_back(0);
+	UINT predictedClass;
+
+	//Load the ANBC model from a file
+	if( !anbc.load("ASLModel_ABDI.grt") ){
+			cout << "Failed to load the classifier model!\n";
+			return EXIT_FAILURE;
+	}
 
 	/*-----------------------------------------------------------------------*
 	 ************************* START INITIALIZATION ***********************
@@ -429,6 +449,7 @@ int main(int argc, char** argv)
 	/*---------------------------------------------------------------------*
 	 ************************* END INITIALIZATION **********************
 	 *---------------------------------------------------------------------*/
+
 	//printf("xOffset1: %x, yOffset1: %x, zOffset1: %x\n",offsetData1.x,offsetData1.y,offsetData1.z);
 	//printf("xOffset2: %x, yOffset2: %x, zOffset2: %x\n\n",offsetData2.x,offsetData2.y,offsetData2.z);
 
@@ -634,6 +655,19 @@ int main(int argc, char** argv)
 		theta1f_Last=theta1f;
 		theta2q_Last=theta2q;
 		theta2f_Last=theta2f;
+
+		inputVector.at(0) = vect_mag1;
+		inputVector.at(1) = vect_mag2;
+		inputVector.at(2) = theta1q;
+		inputVector.at(3) = theta1f;
+		inputVector.at(4) = theta2q;
+		inputVector.at(5) = theta2f;
+		inputVector.at(6) = thetaBetween12;
+		//Perform a prediction using the classifier
+		anbc.predict( inputVector );
+		predictedClass = anbc.getPredictedClassLabel();
+
+		printf("%x\n", predictedClass);
 
 		seq_counter++;
 		if (seq_counter == 1000)
