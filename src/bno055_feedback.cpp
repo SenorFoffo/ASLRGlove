@@ -443,8 +443,10 @@ int main(int argc, char** argv)
     double x1_offset, x2_offset, y1_offset, y2_offset, z1_offset, z2_offset;
     double x1, x2, y1, y2, z1, z2;
     double vect_mag1, vect_mag2;
-    double theta1_x, theta1_y, theta1_z, theta2_x, theta2_y, theta2_z;
-    double theta12;
+    double magX1Y1, magX2Y2;// will be sued to calculate the q angle
+    double theta1q, theta1f, theta2q, theta2f;
+    double last10theta1q[10], last10theta1f[10], last10theta2q[10], last10theta2f[10];
+    double thetaBetween12;
     double theta_threshold = 0.0872664626;//change later
     double last_10_x1[10];
     double last_10_y1[10];
@@ -572,37 +574,37 @@ int main(int argc, char** argv)
         vect_mag1 = sqrt(x1 * x1 + y1 * y1 + z1 * z1);
         vect_mag2 = sqrt(x2 * x2 + y2 * y2 + z2 * z2);
 
-        if(vect_mag1 > 0)
+		magX1Y1 = sqrt(x1 * x1 + y1 * y1);
+        if(x1 > 0 && magX1Y1 > 0)
         {
-        	theta1_x = acos(x1/vect_mag1);
-        	theta1_y = acos(y1/vect_mag1);
-        	theta1_z = acos(z1/vect_mag1);
+        	theta1_q = atan(z1/magX1Y1);
+        	theta1_f = atan(y1/x1);
         }
         else
         {
-        	theta1_x = 0;
-        	theta1_y = 0;
-        	theta1_z = 0;
+        	theta1_q = 0;
+        	theta1_f = 0;
         }
-        if (vect_mag2 > 0)
+        
+        magX2Y2 = sqrt(x2 * x2 + y2 * y2);
+        if (x2 > 0 && magX2Y2 > 0)
         {
-        	theta2_x = acos(x2/vect_mag2);
-        	theta2_y = acos(y2/vect_mag2);
-        	theta2_z = acos(z2/vect_mag2);
+        	theta2q = atan(z2/magX2Y2);
+        	theta2f = atan(y2/x2);
         }
         else
         {
-        	theta1_x = 0;
-        	theta1_y = 0;
-        	theta1_z = 0;
+        	theta2q = 0;
+        	theta2f = 0;
         }
+        
         if(vect_mag1*vect_mag2 > 0)
         {
-        	theta12 = acos((x1*x2 + y1*y2 + z1*z2)/(vect_mag1*vect_mag2));
+        	thetaBetween12 = acos((x1*x2 + y1*y2 + z1*z2)/(vect_mag1*vect_mag2));
         }
         else
         {
-        	theta12 = 0;
+        	thetaBetween12 = 0;
         }
 
 		//feedback_data = "";
@@ -621,7 +623,7 @@ int main(int argc, char** argv)
 
        // fprintf (pFile, "%f\t%f\t%f\t\n",x1_new, y1_new, z1_new);
        // fprintf (pFile, "%f\t%f\t%f\t\n\n",x2_new, y2_new, z2_new);
-        fprintf (pFile, "%f \t %f \t %f \t %f \t %f \t %f \t %f \t %f \t %f\n",vect_mag1, vect_mag2, theta1_x,theta1_y,theta1_z,theta2_x,theta2_y,theta2_z,theta12);
+        fprintf (pFile, "%f \t %f \t %f \t %f \t %f \t %f \t %f \t %f \t %f\n",vect_mag1, vect_mag1, theta1q,theta2f,theta2q,theta2q,thetaBetween12);
         seq_counter++;
         if (seq_counter == 1000)
         {
