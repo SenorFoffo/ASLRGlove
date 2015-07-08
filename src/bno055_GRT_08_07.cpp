@@ -410,17 +410,26 @@ int main(int argc, char** argv)
 	 ************************* start GRT **********************
 	 *---------------------------------------------------------------------*/
 
-	ANBC anbc;
-	anbc.setNullRejectionCoeff( 10 );
-	anbc.enableScaling( true );
-	anbc.enableNullRejection( true );
+	RandomForests forest;
+	//Set the number of trees in the forest
+  forest.setForestSize( 10 );
+
+  //Set the number of random candidate splits that will be used to choose the best splitting values
+  //More steps will give you a better model, but will take longer to train
+  forest.setNumRandomSplits( 100 );
+
+  //Set the maximum depth of the tree
+  forest.setMaxDepth( 10 );
+
+  //Set the minimum number of samples allowed per node
+  forest.setMinNumSamplesPerNode( 10 );
 	vector< double > inputVector;
 	for(int i = 0; i < 7; i++)
 		inputVector.push_back(0);
 	UINT predictedClass;
 
-	//Load the ANBC model from a file
-	if( !anbc.load("ASLModel_ABDI.grt") ){
+	//Load the model from a file
+	if( !forest.load("ASLModel_ABDI.grt") ){
 			cout << "Failed to load the classifier model!\n";
 			return EXIT_FAILURE;
 	}
@@ -683,8 +692,8 @@ int main(int argc, char** argv)
 		inputVector.at(5) = theta2f;
 		inputVector.at(6) = thetaBetween12;
 		//Perform a prediction using the classifier
-		anbc.predict( inputVector );
-		predictedClass = anbc.getPredictedClassLabel();
+		forest.predict( inputVector );
+		predictedClass = forest.getPredictedClassLabel();
 
 		//printf("%x\n", predictedClass);
 
