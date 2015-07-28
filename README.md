@@ -63,7 +63,7 @@ In concept it can be configured to detect any kind of hand gesture or sign langu
 
 * To run the project on the Edison, use the following command:
 
-        ```
+        ```SH
         ./executable-name | tee /dev/tty | ./tcp ip-address port
         ```
 ## Supporting Documentation
