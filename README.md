@@ -70,10 +70,8 @@ In concept it can be configured to detect any kind of hand gesture or sign langu
 
   - To run the project on the Edison, use the following command:
 
-        ```ruby
-        def hello(str)
-          puts "hello #{str}!"
-        end
+        ```SH
+        ./executable-name | tee /dev/tty | ./tcp ip-address port
         ```
 
 * Do not wrap lines. In emacs, enable the `longlines-mode` to make your document word wrap intelligently.
