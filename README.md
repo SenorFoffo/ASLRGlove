@@ -69,8 +69,7 @@ In concept it can be configured to detect any kind of hand gesture or sign langu
 ## Formatting
 
 * Call the file `README.md`.
-* Write in markdown format.
-  - You should use triple backtick blocks for code, and supply a language prefix:
+* To run the project on the Edison, use the following command:
 
         ```ruby
         def hello(str)
