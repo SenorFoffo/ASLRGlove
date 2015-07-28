@@ -61,21 +61,22 @@ In concept it can be configured to detect any kind of hand gesture or sign langu
 
 ## Running The Project
 
-* To run the project on the Edison, use the following command:
+* :
 
         ```SH
         ./executable-name | tee /dev/tty | ./tcp ip-address port
         ```
-## Formatting
+## Running The Project
 
-* Call the file `README.md`.
-* To run the project on the Edison, use the following command:
+  - To run the project on the Edison, use the following command:
 
         ```ruby
         def hello(str)
           puts "hello #{str}!"
         end
         ```
+
+* Do not wrap lines. In emacs, enable the `longlines-mode` to make your document word wrap intelligently.
 
 * Do not wrap lines. In emacs, enable the `longlines-mode` to make your document word wrap intelligently.        
         
