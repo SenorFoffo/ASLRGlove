@@ -1,4 +1,0 @@
-1. Choose dialect
-2. Add the library pthread
-3. Rebuild index of the project
-4. Add std=c++11 flag
