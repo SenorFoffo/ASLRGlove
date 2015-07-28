@@ -12,6 +12,13 @@ In concept it can be configured to detect any kind of hand gesture or sign langu
         ```SH
         ./executable-name | tee /dev/tty | ./tcp ip-address port
         ```
+  - To run the project on the Edison, use the following command:
+
+        ```ruby
+        def hello(str)
+          puts "hello #{str}!"
+        end
+        ```
         
 ## Supporting Documentation
 
