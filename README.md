@@ -66,6 +66,20 @@ In concept it can be configured to detect any kind of hand gesture or sign langu
         ```SH
         ./executable-name | tee /dev/tty | ./tcp ip-address port
         ```
+## Formatting
+
+* Call the file `README.md`.
+* Write in markdown format.
+  - You should use triple backtick blocks for code, and supply a language prefix:
+
+        ```ruby
+        def hello(str)
+          puts "hello #{str}!"
+        end
+        ```
+
+* Do not wrap lines. In emacs, enable the `longlines-mode` to make your document word wrap intelligently.        
+        
 ## Supporting Documentation
 
 Besides a `README.md`, your repo should contain a `CHANGELOG.md` summarizing major code changes, a `LICENSE.md` describing the code's license (typically Apache 2.0 for our open-source projects, All Rights Reserved for internal projects), and a `notes/` directory that is a git submodule of the project's wiki. See the [style guide for repo organization](https://github.com/infochimps-labs/style_guide/blob/master/style-guide-for-repo-organization.md) for more details.
